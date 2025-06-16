@@ -284,6 +284,12 @@ export default function Home() {
           <div className="relative z-10 flex flex-col items-center">
             <h2 className="text-3xl font-bold text-[#ecab55] text-center">Thank you for your submission!</h2>
             <p className="text-lg text-gray-700 text-center mt-2">We appreciate your story and support.</p>
+            <button
+              className="mt-6 px-6 py-2 bg-[#ecab55] hover:bg-[#e09a3c] text-white font-semibold rounded shadow transition-colors"
+              onClick={() => { setSuccess(false); setError(""); }}
+            >
+              Submit Another Response
+            </button>
           </div>
         )}
       </div>
