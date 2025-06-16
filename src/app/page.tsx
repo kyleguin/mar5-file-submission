@@ -2,8 +2,8 @@
 import { useRef, useState } from "react";
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://vunqrrdqmpkomhdrvosw.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1bnFycmRxbXBrb21oZHJ2b3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NTcwNTcsImV4cCI6MjA2NTQzMzA1N30.SSq3Crcd2NNVjhG7-ruWYVQvTXXM4rP3HMhZ6mGL7Ew';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 const bucketName = 'webform-uploads';
 
