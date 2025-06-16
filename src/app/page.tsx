@@ -8,6 +8,13 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 const bucketName = 'webform-uploads';
 
+// TypeScript declaration for iframe-resizer
+declare global {
+  interface Window {
+    parentIFrame?: { size: () => void };
+  }
+}
+
 export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -158,11 +165,15 @@ export default function Home() {
         ],
         scalar: 1.2,
       });
+      // Manually trigger iframe-resizer if available
+      if (typeof window !== 'undefined' && window.parentIFrame && window.parentIFrame.size) {
+        window.parentIFrame.size();
+      }
     }
   }, [success]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+    <div className="min-h-[700px] flex items-center justify-center bg-white p-4">
       {/* Loading Modal */}
       {submitting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/10 backdrop-blur-sm">
