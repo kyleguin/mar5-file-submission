@@ -22,6 +22,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (typeof window !== 'undefined') {
+    import('iframe-resizer/js/iframeResizer.contentWindow');
+  }
+
   return (
     <html lang="en">
       <body
