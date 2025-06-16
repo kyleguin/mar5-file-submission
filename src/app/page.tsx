@@ -14,7 +14,6 @@ export default function Home() {
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [filePreviews, setFilePreviews] = useState<string[]>([]);
-  const [progress, setProgress] = useState<number>(0);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,7 +100,6 @@ export default function Home() {
     setSubmitting(true);
     setError("");
     setSuccess(false);
-    setProgress(0);
 
     // Get form data
     const formData = new FormData(formRef.current!);
@@ -118,7 +116,6 @@ export default function Home() {
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
         uploadedFiles.push({ name: file.name, url: publicUrlData.publicUrl });
-        setProgress(Math.round(((i + 1) / files.length) * 100));
       }
 
       // Store submission in Supabase table
@@ -138,11 +135,9 @@ export default function Home() {
       formRef.current?.reset();
       setFiles([]);
       setFilePreviews([]);
-      setProgress(0);
     } catch {
       setSubmitting(false);
       setError('Upload failed. Please try again.');
-      setProgress(0);
     }
   };
 
