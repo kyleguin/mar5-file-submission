@@ -173,7 +173,7 @@ export default function Home() {
   }, [success]);
 
   return (
-    <div className="min-h-[700px] flex items-center justify-center bg-white p-4">
+    <div className="h-[900px] flex items-center justify-center bg-white p-4">
       {/* Loading Modal */}
       {submitting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/10 backdrop-blur-sm">
