@@ -107,12 +107,12 @@ export default function Home() {
     const message = formData.get('message') as string;
 
     // Upload files to Supabase
-    let uploadedFiles: { name: string; url: string }[] = [];
+    const uploadedFiles: { name: string; url: string }[] = [];
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const filePath = `${Date.now()}_${sanitizeFileName(file.name)}`;
-        const { data, error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file, { upsert: true });
+        const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file, { upsert: true });
         if (uploadError) throw uploadError;
         const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
         uploadedFiles.push({ name: file.name, url: publicUrlData.publicUrl });
@@ -135,7 +135,7 @@ export default function Home() {
       formRef.current?.reset();
       setFiles([]);
       setFilePreviews([]);
-    } catch (err: any) {
+    } catch {
       setSubmitting(false);
       setError('Upload failed. Please try again.');
     }
