@@ -107,8 +107,8 @@ export default function Home() {
     const message = formData.get('message') as string;
 
     // Upload files to Supabase
-    const uploadedFiles: { name: string; url: string }[] = [];
     try {
+      const uploadedFiles: { name: string; url: string }[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const filePath = `${Date.now()}_${sanitizeFileName(file.name)}`;
