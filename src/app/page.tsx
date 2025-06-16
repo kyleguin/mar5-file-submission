@@ -1,103 +1,271 @@
-import Image from "next/image";
+"use client";
+import { useRef, useState } from "react";
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://vunqrrdqmpkomhdrvosw.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1bnFycmRxbXBrb21oZHJ2b3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NTcwNTcsImV4cCI6MjA2NTQzMzA1N30.SSq3Crcd2NNVjhG7-ruWYVQvTXXM4rP3HMhZ6mGL7Ew';
+const supabase = createClient(supabaseUrl, supabaseKey);
+const bucketName = 'webform-uploads';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Generate video thumbnail
+  const generateThumbnail = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      if (file.type.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.playsInline = true;
+        video.currentTime = 0.1;
+        video.onloadeddata = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/png"));
+          } else {
+            resolve("");
+          }
+          URL.revokeObjectURL(video.src);
+        };
+        video.onerror = () => resolve("");
+      } else if (file.type.startsWith("image/")) {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/png"));
+          } else {
+            resolve("");
+          }
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = () => resolve("");
+      } else {
+        // For non-image/video files, return an empty string (will show a placeholder)
+        resolve("");
+      }
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files ? Array.from(e.target.files) : [];
+    if (selected.length > 10) {
+      setError("You can upload a maximum of 10 files.");
+      setFiles([]);
+      setFilePreviews([]);
+      return;
+    }
+    setError("");
+    setFiles(selected);
+    // Generate thumbnails
+    const previews = await Promise.all(selected.map(generateThumbnail));
+    setFilePreviews(previews);
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index));
+    setFilePreviews(filePreviews.filter((_, i) => i !== index));
+  };
+
+  const handleCustomFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Helper to sanitize file names
+  function sanitizeFileName(name: string) {
+    return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  // Placeholder submit handler
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    setSuccess(false);
+
+    // Get form data
+    const formData = new FormData(formRef.current!);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const message = formData.get('message') as string;
+
+    // Upload files to Supabase
+    let uploadedFiles: { name: string; url: string }[] = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const filePath = `${Date.now()}_${sanitizeFileName(file.name)}`;
+        const { data, error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+        uploadedFiles.push({ name: file.name, url: publicUrlData.publicUrl });
+      }
+
+      // Store submission in Supabase table
+      const { error: insertError } = await supabase.from('submissions').insert([
+        {
+          name,
+          email,
+          message,
+          files: uploadedFiles,
+          submitted_at: new Date().toISOString(),
+        },
+      ]);
+      if (insertError) throw insertError;
+
+      setSubmitting(false);
+      setSuccess(true);
+      formRef.current?.reset();
+      setFiles([]);
+      setFilePreviews([]);
+    } catch (err: any) {
+      setSubmitting(false);
+      setError('Upload failed. Please try again.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
+      {/* Loading Modal */}
+      {submitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col items-center gap-4 min-w-[220px]">
+            <svg className="animate-spin h-8 w-8 text-[#ecab55]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span className="text-[#ecab55] font-semibold text-lg">Uploading files...</span>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      )}
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 flex flex-col gap-6 border border-[#ececec]"
+        style={{ borderColor: "rgb(236, 171, 85)" }}
+      >
+        <h1 className="text-2xl font-bold text-center mb-2" style={{ color: "rgb(236, 171, 85)" }}>
+          Thank a Charity!
+        </h1>
+        <p className="text-center text-gray-600 mb-4">
+          Submit a video message to thank a charity for their support.
+        </p>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="name" className="font-medium text-gray-700">
+            Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            className="border border-gray-300 rounded-lg px-4 py-2 bg-[#faf7f3] text-gray-900 font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ecab55] focus:border-[#ecab55] transition-shadow shadow-sm"
+            placeholder="Your name"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="email" className="font-medium text-gray-700">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            className="border border-gray-300 rounded-lg px-4 py-2 bg-[#faf7f3] text-gray-900 font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ecab55] focus:border-[#ecab55] transition-shadow shadow-sm"
+            placeholder="you@email.com"
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="message" className="font-medium text-gray-700">
+            Message
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            required
+            rows={3}
+            className="border border-gray-300 rounded-lg px-4 py-2 bg-[#faf7f3] text-gray-900 font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ecab55] focus:border-[#ecab55] transition-shadow shadow-sm resize-none"
+            placeholder="Your message to the charity"
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="video" className="font-medium text-gray-700">
+            File Upload (max 10)
+          </label>
+          <input
+            id="video"
+            name="video"
+            type="file"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            multiple
+            onChange={handleFileChange}
+            ref={fileInputRef}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={handleCustomFileClick}
+            className="w-full bg-[#ecab55] hover:bg-[#e09a3c] text-white font-semibold py-2 rounded transition-colors mb-2"
+          >
+            Upload Files
+          </button>
+          {filePreviews.length > 0 && (
+            <div className="flex flex-wrap gap-3 mt-2">
+              {filePreviews.map((src, idx) => (
+                <div key={idx} className="relative w-20 h-20 rounded overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+                  {src ? (
+                    <img src={src} alt={`File thumbnail ${idx + 1}`} className="object-cover w-full h-full" />
+                  ) : (
+                    <span className="text-xs text-gray-400">No preview</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-bl"
+                  >
+                    X
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="bg-[#ecab55] hover:bg-[#e09a3c] text-white font-semibold py-2 rounded transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+        >
+          {submitting ? "Submitting..." : "Submit"}
+        </button>
+        {success && (
+          <div className="text-green-600 text-center font-medium mt-2">
+            Thank you for your submission!
+          </div>
+        )}
+        {error && (
+          <div className="text-red-600 text-center font-medium mt-2">
+            {error}
+          </div>
+        )}
+      </form>
     </div>
   );
 }
